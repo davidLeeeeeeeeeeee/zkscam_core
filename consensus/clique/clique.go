@@ -550,13 +550,8 @@ func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	return nil
 }
 
-// Finalize implements consensus.Engine. There is no post-transaction
-// consensus rules in clique, do nothing here.
-// Finalize 实现 consensus.Engine。在这里，我们计算总的 gas 费用，并将其按照矿工的质押比例分配。
-func (c *Clique) Finalize(chain consensus.ChainHeaderReader, header *types.Header,
-	state *state.StateDB, txs []*types.Transaction, uncles []*types.Header,
-	receipts []*types.Receipt, withdrawals []*types.Withdrawal) {
-
+// DistributeMinerGasReward 在这里，我们计算总的 gas 费用，并将其按照矿工的质押比例分配。
+func (c *Clique) DistributeMinerGasReward(header *types.Header, state *state.StateDB, txs []*types.Transaction, receipts []*types.Receipt) {
 	// 计算需要分配的总 gas 费用
 	totalFees := new(big.Int)
 
@@ -648,8 +643,7 @@ func (c *Clique) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 			// 将 Wei 转换为 Ether
 			minerShareFloat := new(big.Float).SetInt(minerShare)
 			minerShareEther := new(big.Float).Quo(minerShareFloat, big.NewFloat(1e18))
-			minerShareEtherFloat, _ := minerShareEther.Float64()
-			log.Info("当前节点获得的奖励", "miner", minerAddress.Hex(), "reward (ETH)", minerShareEtherFloat)
+			log.Info("当前节点获得的奖励", "miner", minerAddress.Hex(), "reward (ETH)", minerShareEther.String(), "ETH")
 		}
 
 		// 更新状态：将 minerShare 添加到矿工的余额中
@@ -664,22 +658,17 @@ func (c *Clique) Finalize(chain consensus.ChainHeaderReader, header *types.Heade
 		distributedFees.Add(distributedFees, minerShare)
 	}
 
-	// 处理由于整数除法导致的任何剩余费用
-	remainingFees := new(big.Int).Sub(eightyPercentFees, distributedFees)
-	if remainingFees.Sign() > 0 {
-		// 将剩余费用分配给第一个矿工
-		for minerAddress := range minerStakes {
-			// 处理剩余费用时，同样进行转换
-			remainingFeesUint256, overflow := uint256.FromBig(remainingFees)
-			if overflow {
-				log.Error("remainingFees 超出 uint256 范围")
-				// 处理溢出
-			} else {
-				state.AddBalance(minerAddress, remainingFeesUint256)
-			}
-			break
-		}
-	}
+}
+
+// Finalize implements consensus.Engine. There is no post-transaction
+// consensus rules in clique, do nothing here.
+
+func (c *Clique) Finalize(chain consensus.ChainHeaderReader, header *types.Header,
+	state *state.StateDB, txs []*types.Transaction, uncles []*types.Header,
+	receipts []*types.Receipt, withdrawals []*types.Withdrawal) {
+	currentBlockNumber := header.Number.Uint64()
+	parentHeader := chain.GetHeader(header.ParentHash, currentBlockNumber-1)
+	c.DistributeMinerGasReward(parentHeader, state, txs, receipts)
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,

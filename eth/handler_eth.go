@@ -152,7 +152,7 @@ func (h *ethHandler) handleBlockBroadcast(peer *eth.Peer, block *types.Block, td
 		peer.TotalVotes.String(),
 		totalVotes.String(),
 	)
-	if _, td := peer.Head(); totalVotes.Cmp(td) > 0 {
+	if _, td := peer.Head(); totalVotes.Cmp(td) > 0 && h.chainSync.doneCh == nil {
 		log.Info("if _, td := peer.Head(); totalVotes.Cmp(td) > 0", td.String(), totalVotes.String())
 		peer.SetHead(trueHead, trueTD, totalVotes)
 		h.chainSync.handlePeerEvent()
