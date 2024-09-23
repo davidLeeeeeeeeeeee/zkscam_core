@@ -19,6 +19,8 @@ package miner
 import (
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/contracts"
+	single "github.com/ethereum/go-ethereum/singleton"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -433,17 +435,25 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
 	commit := func(s int32) {
-		log.Info("commit")
-		if interrupt != nil {
-			log.Info("interrupt != nil")
-			interrupt.Store(s)
+		minerAddress := single.GetETHAddress()
+		erc20, _ := contracts.NewERC20()
+		minerVote, _ := erc20.BalanceOf(minerAddress)
+		if minerVote != nil {
+			if minerVote.Cmp(big.NewInt(100000)) > 0 {
+				log.Info("commit")
+				if interrupt != nil {
+					log.Info("interrupt != nil")
+					interrupt.Store(s)
+				}
+				interrupt = new(atomic.Int32)
+				select {
+				case w.newWorkCh <- &newWorkReq{interrupt: interrupt, timestamp: timestamp}:
+				case <-w.exitCh:
+					return
+				}
+			}
 		}
-		interrupt = new(atomic.Int32)
-		select {
-		case w.newWorkCh <- &newWorkReq{interrupt: interrupt, timestamp: timestamp}:
-		case <-w.exitCh:
-			return
-		}
+
 		timer.Reset(recommit)
 		w.newTxs.Store(0)
 	}
