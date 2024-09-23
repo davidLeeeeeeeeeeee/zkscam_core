@@ -75,7 +75,7 @@ func NewForkChoice(chainReader ChainReader, preserve func(header *types.Header) 
 // TotalVotes is higher. The trusted header is not selected based on
 // external trust but by direct vote comparison.
 func (f *ForkChoice) ReorgNeeded(current *types.Header, extern *types.Header) (bool, error) {
-	log.Info("func (f *ForkChoice) ReorgNeeded")
+	log.Info("func (f *ForkChoice) ReorgNeeded ", "current", current.Number.String(), "extern", extern.Number.String())
 	var (
 		localVotes  = current.TotalVotes
 		externVotes = extern.TotalVotes
@@ -84,10 +84,9 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, extern *types.Header) (b
 		log.Info("return false, errors.New(\"missing votes\")")
 		return false, errors.New("missing votes")
 	}
-
 	// If the total votes are higher in the external header, choose it as the new head
 	if diff := externVotes.Cmp(localVotes); diff > 0 {
-		log.Info("return true, nil", externVotes.String(), localVotes.String())
+		//log.Info("return true, nil", externVotes.String(), localVotes.String())
 		return true, nil
 	} else if diff < 0 {
 		log.Info("return false, nil")
