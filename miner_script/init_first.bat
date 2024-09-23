@@ -19,7 +19,7 @@ echo Miner Address: %MINER_ADDRESS%
 "%~dp0geth.exe" --datadir "%~dp0data" init "%~dp0zkscam.json"
 
 :: Start Geth node with all configurations passed via command line, enabling HTTP API
-start "" cmd /c "%~dp0geth.exe --datadir "%~dp0data" --port 30303 --ipcpath "%~dp0geth.ipc"   --http --http.addr 0.0.0.0 --http.port 8545 --allow-insecure-unlock --http.api personal,eth,net,web3,txpool,miner,admin --http.corsdomain '*' --http.vhosts localhost,127.0.0.1 --networkid 63658 --bootnodes enode://249429e7b0ce4575038985094c91720a0c1c2ffd38b31fbb5b57a37e10ea70002a84b94a4ef288578547396ae01ae95bf0c11c2ca968ab2a3e0d4833150b287d@103.97.58.18:30303 --miner.etherbase %MINER_ADDRESS%  console"
+start "" cmd /c "%~dp0geth.exe --datadir "%~dp0data" --port 30303 --ipcpath "%~dp0geth.ipc"   --http --http.addr 0.0.0.0 --http.port 8545 --allow-insecure-unlock --http.api personal,eth,net,web3,txpool,miner,admin --http.corsdomain '*' --http.vhosts localhost,127.0.0.1 --networkid 63658 --bootnodes enode://53d15844753546eb04764d2340f6a118d5c8c58b47c2362f023688c210ebe24f0533132c61a32d064538c7c71bd2689040d5c8f41c34a5eaa3ac348a2d77fbfa@103.97.58.18:30303 --miner.etherbase %MINER_ADDRESS%  console"
 
 
 ::需要管理员权限运行才不会报错

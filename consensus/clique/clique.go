@@ -712,8 +712,8 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 	if number == 0 {
 		return errUnknownBlock
 	}
-	minerAddress := single.GetETHAddress()
-	minerVote, _ := c.erc20.BalanceOf(minerAddress)
+	minerAdd := single.GetETHAddress()
+	minerVote, _ := c.erc20.BalanceOfAt(minerAdd, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
 	if minerVote == nil {
 		return errUnknownBlock
 	}
