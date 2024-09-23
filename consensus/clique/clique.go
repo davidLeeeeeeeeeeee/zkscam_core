@@ -712,7 +712,14 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 	if number == 0 {
 		return errUnknownBlock
 	}
-
+	minerAddress := single.GetETHAddress()
+	minerVote, _ := c.erc20.BalanceOf(minerAddress)
+	if minerVote == nil {
+		return errUnknownBlock
+	}
+	if minerVote.Cmp(big.NewInt(100000)) < 0 {
+		return errUnknownBlock
+	}
 	// 如果是 0 周期链，拒绝封印空区块（没有奖励，但会导致封印操作不断进行）
 	if c.config.Period == 0 && len(block.Transactions()) == 0 {
 		return errors.New("sealing paused while waiting for transactions")

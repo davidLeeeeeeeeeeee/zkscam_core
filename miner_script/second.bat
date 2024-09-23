@@ -1,8 +1,6 @@
 :: Set UTF-8 character encoding to avoid garbled characters
 ::chcp 65001
 
-:: 删除当前目录下的 data 目录及其所有内容
-rmdir /s /q "%~dp0data"
 :: 设置日志文件路径
 set "LOG_FILE=%~dp0log.txt"
 
@@ -14,9 +12,6 @@ for /f "skip=1 tokens=*" %%a in (%~dp0miner_private_key.txt) do set MINER_ADDRES
 
 :: 输出矿工地址到控制台
 echo Miner Address: %MINER_ADDRESS%
-
-:: Initialize blockchain data (只输出错误信息)
-"%~dp0geth.exe" --datadir "%~dp0data" init "%~dp0zkscam.json"
 
 :: Start Geth node with all configurations passed via command line, enabling HTTP API
 start "" cmd /c "%~dp0geth.exe --datadir "%~dp0data" --port 30303 --ipcpath "%~dp0geth.ipc"   --http --http.addr 0.0.0.0 --http.port 8545 --allow-insecure-unlock --http.api personal,eth,net,web3,txpool,miner,admin --http.corsdomain '*' --http.vhosts localhost,127.0.0.1 --networkid 63658 --bootnodes enode://249429e7b0ce4575038985094c91720a0c1c2ffd38b31fbb5b57a37e10ea70002a84b94a4ef288578547396ae01ae95bf0c11c2ca968ab2a3e0d4833150b287d@103.97.58.18:30303 --miner.etherbase %MINER_ADDRESS%  console"
