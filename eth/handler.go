@@ -712,7 +712,7 @@ func (h *handler) votedBroadcastLoop() {
 	for obj := range h.minedBlockSub.Chan() {
 		if ev, ok := obj.Data.(core.NewMinedBlockEvent); ok {
 			//h.BroadcastBlock(ev.Block, true) // First propagate block to peers
-			h.BroadcastBlock(ev.Block, true) // Only then announce to the rest
+			h.BroadcastBlock(ev.Block, false) // Only then announce to the rest
 			//single.New()
 			//// 声明并初始化 key 变量
 			//var key *ecdsa.PrivateKey

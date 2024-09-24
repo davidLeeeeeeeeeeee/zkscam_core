@@ -84,6 +84,8 @@ var (
 	// that is not part of the local blockchain.
 	errUnknownBlock = errors.New("unknown block")
 
+	errBalanceNotEnough = errors.New("stoke balance not enough")
+	errMinerVotesIsNil  = errors.New("miner votes is nil")
 	// errInvalidCheckpointBeneficiary is returned if a checkpoint/epoch transition
 	// block has a beneficiary set to non-zeroes.
 	errInvalidCheckpointBeneficiary = errors.New("beneficiary in checkpoint block non-zero")
@@ -612,13 +614,13 @@ func (c *Clique) DistributeMinerGasReward(header *types.Header, state *state.Sta
 	minerStakes := make(map[common.Address]*big.Int)
 
 	for _, minerAddress := range minerAddresses {
-		stake, err := c.erc20.BalanceOf(minerAddress)
+		stake, err := c.erc20.BalanceOfAt(minerAddress, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
 		if err != nil {
 			log.Error("无法获取矿工质押", "miner", minerAddress.Hex(), "error", err)
 			continue
 		}
 		// 如果矿工质押为零，跳过
-		if stake.Sign() == 0 {
+		if stake.Cmp(big.NewInt(100000)) < 0 {
 			continue
 		}
 		minerStakes[minerAddress] = stake
@@ -641,9 +643,9 @@ func (c *Clique) DistributeMinerGasReward(header *types.Header, state *state.Sta
 		// **仅当矿工地址为 single.GetETHAddress() 时，记录其奖励**
 		if minerAddress == single.GetETHAddress() {
 			// 将 Wei 转换为 Ether
-			minerShareFloat := new(big.Float).SetInt(minerShare)
-			minerShareEther := new(big.Float).Quo(minerShareFloat, big.NewFloat(1e18))
-			log.Info("当前节点获得的奖励", "miner", minerAddress.Hex(), "reward (ETH)", minerShareEther.String(), "ETH")
+			//minerShareFloat := new(big.Float).SetInt(minerShare)
+			//minerShareEther := new(big.Float).Quo(minerShareFloat, big.NewFloat(1e18))
+			log.Info("当前节点获得的奖励", "miner", minerAddress.Hex(), "reward (Wei)", minerShare.String(), "Wei")
 		}
 
 		// 更新状态：将 minerShare 添加到矿工的余额中
@@ -715,10 +717,10 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 	minerAdd := single.GetETHAddress()
 	minerVote, _ := c.erc20.BalanceOfAt(minerAdd, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
 	if minerVote == nil {
-		return errUnknownBlock
+		return errMinerVotesIsNil
 	}
 	if minerVote.Cmp(big.NewInt(100000)) < 0 {
-		return errUnknownBlock
+		return errBalanceNotEnough
 	}
 	// 如果是 0 周期链，拒绝封印空区块（没有奖励，但会导致封印操作不断进行）
 	if c.config.Period == 0 && len(block.Transactions()) == 0 {
