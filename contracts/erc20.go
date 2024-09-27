@@ -87,6 +87,7 @@ func (erc20 *ERC20) BalanceOfAt(accountAddress common.Address, blockNumber *big.
 	// Call the contract at the specific block number
 	result, err := client.CallContract(context.Background(), callMsg, blockNumber)
 	if err != nil {
+		log.Printf(blockNumber.String(), accountAddress.String(), err.Error())
 		return nil, err
 	}
 
