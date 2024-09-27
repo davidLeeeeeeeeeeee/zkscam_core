@@ -349,7 +349,7 @@ func (d *Downloader) LegacySync(id string, head common.Hash, totalVotes *big.Int
 		return err
 	}
 	if errors.Is(err, ErrMergeTransition) {
-		return err // This is an expected fault, don't keep printing it in a spin-loop
+		return nil // This is an expected fault, don't keep printing it in a spin-loop
 	}
 	log.Warn("Synchronisation failed, retrying", "err", err)
 	return err
