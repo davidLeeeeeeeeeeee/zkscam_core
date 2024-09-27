@@ -74,6 +74,11 @@ func (erc20 *ERC20) BalanceOf(accountAddress common.Address) (*big.Int, error) {
 
 // BalanceOfAt retrieves the balance of the ERC20 token for a specific address at a specific block number
 func (erc20 *ERC20) BalanceOfAt(accountAddress common.Address, blockNumber *big.Int) (*big.Int, error) {
+	// Check if blockNumber is less than 0, and set it to 0 if true
+	if blockNumber.Cmp(big.NewInt(0)) < 0 {
+		blockNumber = big.NewInt(0)
+	}
+
 	client := ethclient.NewClient(erc20.Client)
 
 	// ERC20 balanceOf function signature: 70a08231
@@ -91,7 +96,7 @@ func (erc20 *ERC20) BalanceOfAt(accountAddress common.Address, blockNumber *big.
 		return nil, err
 	}
 
-	//fmt.Printf("Raw result from eth_call at block %s: %s\n", blockNumber.String(), hex.EncodeToString(result))
+	// fmt.Printf("Raw result from eth_call at block %s: %s\n", blockNumber.String(), hex.EncodeToString(result))
 
 	balance := new(big.Int).SetBytes(result)
 	return balance, nil
