@@ -714,6 +714,7 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 	if number == 0 {
 		return errUnknownBlock
 	}
+	// 确保自身有打包权利
 	minerAdd := single.GetETHAddress()
 	minerVote, _ := c.erc20.BalanceOfAt(minerAdd, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
 	if minerVote == nil {
