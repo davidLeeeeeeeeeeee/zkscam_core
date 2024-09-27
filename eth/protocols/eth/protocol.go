@@ -94,22 +94,28 @@ type StatusPacket struct {
 
 // NewBlockHashesPacket is the network packet for the block announcements.
 type NewBlockHashesPacket []struct {
-	Hash   common.Hash // Hash of one particular block being announced
-	Number uint64      // Number of one particular block being announced
+	PHash     common.Hash
+	Hash      common.Hash // Hash of one particular block being announced
+	Number    uint64      // Number of one particular block being announced
+	TotalVote *big.Int
 }
 
 // Unpack retrieves the block hashes and numbers from the announcement packet
 // and returns them in a split flat format that's more consistent with the
 // internal data structures.
-func (p *NewBlockHashesPacket) Unpack() ([]common.Hash, []uint64) {
+func (p *NewBlockHashesPacket) Unpack() ([]common.Hash, []uint64, *big.Int, []common.Hash) {
 	var (
-		hashes  = make([]common.Hash, len(*p))
-		numbers = make([]uint64, len(*p))
+		hashes    = make([]common.Hash, len(*p))
+		patents   = make([]common.Hash, len(*p))
+		numbers   = make([]uint64, len(*p))
+		totalVote = big.NewInt(0)
 	)
 	for i, body := range *p {
 		hashes[i], numbers[i] = body.Hash, body.Number
+		totalVote = totalVote.Add(totalVote, body.TotalVote)
+		patents[i] = body.PHash
 	}
-	return hashes, numbers
+	return hashes, numbers, totalVote, patents
 }
 
 // TransactionsPacket is the network packet for broadcasting new transactions.

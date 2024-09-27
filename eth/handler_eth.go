@@ -22,12 +22,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	vote "github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"math/big"
-	"time"
 )
 
 // ethHandler implements the eth.Backend interface to handle the various network
@@ -69,8 +67,8 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	switch packet := packet.(type) {
 	case *eth.NewBlockHashesPacket:
 		log.Info("handling new block hashes packet")
-		hashes, numbers := packet.Unpack()
-		return h.handleBlockAnnounces(peer, hashes, numbers)
+		hashes, numbers, totalVotes, phashes := packet.Unpack()
+		return h.handleBlockAnnounces(peer, hashes, numbers, totalVotes, phashes)
 
 	case *eth.NewBlockPacket:
 		return h.handleBlockBroadcast(peer, packet.Block, packet.TD)
@@ -100,7 +98,7 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 
 // handleBlockAnnounces is invoked from a peer's message handler when it transmits a
 // batch of block announcements for the local node to process.
-func (h *ethHandler) handleBlockAnnounces(peer *eth.Peer, hashes []common.Hash, numbers []uint64) error {
+func (h *ethHandler) handleBlockAnnounces(peer *eth.Peer, hashes []common.Hash, numbers []uint64, totalVotes *big.Int, phashes []common.Hash) error {
 
 	var (
 		unknownHashes  = make([]common.Hash, 0, len(hashes))
@@ -112,17 +110,8 @@ func (h *ethHandler) handleBlockAnnounces(peer *eth.Peer, hashes []common.Hash, 
 			unknownNumbers = append(unknownNumbers, numbers[i])
 		}
 	}
-	// 获取 VtFetcher 的单例实例
-	vtFetcher := vote.NewVtFetcher()
-
-	// 使用 VtFetcher 来记录每组参数
-	for i := 0; i < len(unknownHashes); i++ {
-		// 将每组参数存入 VtFetcher 单例的 notifyData 中
-		vtFetcher.AddNotifyData(unknownHashes[i], peer.ID(), unknownNumbers[i], time.Now(), peer.RequestOneHeader, peer.RequestBodies)
-	}
-	for i := 0; i < len(unknownHashes); i++ {
-		h.blockFetcher.Notify(peer.ID(), unknownHashes[i], unknownNumbers[i], time.Now(), peer.RequestOneHeader, peer.RequestBodies)
-	}
+	peer.SetHead(phashes[0], totalVotes, totalVotes)
+	h.chainSync.handlePeerEvent()
 	return nil
 }
 

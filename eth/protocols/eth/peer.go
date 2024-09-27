@@ -270,7 +270,7 @@ func (p *Peer) ReplyPooledTransactionsRLP(id uint64, hashes []common.Hash, txs [
 
 // SendNewBlockHashes announces the availability of a number of blocks through
 // a hash notification.
-func (p *Peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error {
+func (p *Peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64, totalVotes *big.Int, phashes []common.Hash) error {
 	// Mark all the block hashes as known, but ensure we don't overflow our limits
 	p.knownBlocks.Add(hashes...)
 
@@ -278,6 +278,8 @@ func (p *Peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error 
 	for i := 0; i < len(hashes); i++ {
 		request[i].Hash = hashes[i]
 		request[i].Number = numbers[i]
+		request[i].TotalVote = totalVotes
+		request[i].PHash = phashes[i]
 	}
 	return p2p.Send(p.Rw, NewBlockHashesMsg, request)
 }
