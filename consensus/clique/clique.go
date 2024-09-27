@@ -55,7 +55,7 @@ const (
 	checkpointInterval  = 1024 // Number of blocks after which to save the vote snapshot to the database
 	inmemorySnapshots   = 128  // Number of recent vote snapshots to keep in memory
 	inmemorySignatures  = 4096 // Number of recent block signatures to keep in memory
-	miner_waiting_block = 2
+	miner_waiting_block = 10
 	wiggleTime          = 500 * time.Millisecond // Random delay (per signer) to allow concurrent signers
 )
 
