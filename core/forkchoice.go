@@ -92,6 +92,15 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, extern *types.Header) (b
 		log.Info("return false, nil")
 		return false, nil
 	}
+	// 投票相同，比较MinerAddresses的数量
+	localMinersCount := len(current.MinerAddresses)
+	externMinersCount := len(extern.MinerAddresses)
+
+	if externMinersCount > localMinersCount {
+		return true, nil
+	} else if externMinersCount < localMinersCount {
+		return false, nil
+	}
 	// Local and external votes are identical.
 	// Second clause reduces the vulnerability to selfish mining attacks.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf

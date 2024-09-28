@@ -358,7 +358,7 @@ func (c *Clique) verifyBlockVotesAndSignatures(chain consensus.ChainHeaderReader
 	var minBalanceThreshold = big.NewInt(100000)
 	var votesCount = big.NewInt(0) // 当前区块的总票数
 	for i, minerAddress := range header.MinerAddresses {
-		// 1. 验证之前2个区块的ERC20余额是否满足要求
+		// 1. 验证之前10个区块的ERC20余额是否满足要求
 		balanceLast, err := c.erc20.BalanceOfAt(minerAddress, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
 		if err != nil {
 			return fmt.Errorf("error retrieving ERC20 balance for miner %s: %v", minerAddress.Hex(), err)
