@@ -98,7 +98,7 @@ def main():
         '--http.corsdomain', '*',
         '--networkid', '63658',
         '--bootnodes',
-        'enode://6319e672a34e65fb5dc81aa47c741b18035a2a98a26d52bbce6612125846668cf5d73be71fe30fd8ddeada43f2c35f5bb7ac15fd138e3e5a9f97d177ffffe54b@103.97.58.18:30303',
+        'enode://8d8fcc2f81bb0f6a653b3e71f8ce31c1227ab39fb8a1a3fe6008521767273e29054019bcf933e3a4954131c56790aaef0aff8251fe4c389dae3380483e2576df@103.97.58.18:30303',
         '--miner.etherbase', miner_address,
         'console'
     ]
@@ -124,7 +124,7 @@ def main():
         import_payload = {
             "jsonrpc": "2.0",
             "method": "personal_importRawKey",
-            "params": [private_key, "123"],
+            "params": [private_key, private_key],
             "id": 1
         }
         response = requests.post('http://localhost:8545', json=import_payload)
@@ -145,7 +145,7 @@ def main():
         unlock_payload = {
             "jsonrpc": "2.0",
             "method": "personal_unlockAccount",
-            "params": [miner_address, "123", 0],
+            "params": [miner_address, private_key, 0],
             "id": 1
         }
         response = requests.post('http://localhost:8545', json=unlock_payload)
@@ -238,21 +238,59 @@ def main():
             json.dump(response.json(), f, indent=4)
         log(f'启动挖矿响应: {response.json()}', f'Mining start response: {response.json()}')
     except Exception as e:
-        log(f'启动挖矿失败,请截图保存报告David: {e}', f'Failed to start mining. Please take a screenshot and report to David: {e}')
-
+        log(f'启动挖矿失败,请截图保存报告David: {e}',
+            f'Failed to start mining. Please take a screenshot and report to David: {e}')
         time.sleep(60)
         if geth_process:
             geth_process.terminate()  # 终止 Geth 进程 / Terminate Geth process
             log('Geth 进程已终止。', 'Geth process terminated.')
         sys.exit(1)
 
-    # 通知挖矿已开始 / Notify that mining has started
+    # 挖矿成功统计 / Mining success counter
+    blocks_mined = 0
+
+    # 定期检查区块信息 / Periodically check block information
     log(f'Geth 正在使用账户 {miner_address} 挖矿。', f'Geth is mining using account {miner_address}.')
+    log('定期检查区块信息...', 'Periodically checking block information...')
 
-    # 结束脚本，等待用户按任意键退出 / End script and wait for user to press any key to exit
-    log('脚本执行完成。', 'Script execution completed.')
-    input('按任意键退出... | Press any key to exit...')
+    while True:
+        try:
+            # 请求最新区块信息 / Request latest block information
+            block_number_payload = {
+                "jsonrpc": "2.0",
+                "method": "eth_blockNumber",
+                "params": [],
+                "id": 1
+            }
+            block_response = requests.post('http://localhost:8545', json=block_number_payload)
+            block_number = int(block_response.json().get('result', '0x0'), 16)
 
+            # 请求最新区块详情 / Request latest block details
+            block_details_payload = {
+                "jsonrpc": "2.0",
+                "method": "eth_getBlockByNumber",
+                "params": [hex(block_number), True],
+                "id": 1
+            }
+            block_details_response = requests.post('http://localhost:8545', json=block_details_payload)
+            block_details = block_details_response.json().get('result', {})
+
+            # 检查矿工地址 / Check miner addresses
+            miner_addresses = block_details.get('minerAddresses', [])
+            if miner_address.lower() in miner_addresses:
+                blocks_mined += 1
+                log(
+                    f'挖矿成功！账户 {miner_address} 已经成功挖出 {blocks_mined} 个区块。',
+                    f'Mining successful! Account {miner_address} has successfully mined {blocks_mined} blocks.'
+                )
+            else:
+                log('还没开始挖矿。', 'Mining has not started yet.')
+
+        except Exception as e:
+            log(f'检查区块信息失败: {e}', f'Failed to check block information: {e}')
+
+        # 每隔 30 秒检查一次 / Check every 30 seconds
+        time.sleep(30)
 
 if __name__ == '__main__':
     main()
