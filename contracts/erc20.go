@@ -49,6 +49,37 @@ func NewERC20() (*ERC20, error) {
 	return instance, nil
 }
 
+// BalanceOfCurrentAndMinus10 retrieves the balance of the ERC20 token for a specific address
+// at the latest block and the block 10 blocks prior to the latest block.
+// BalanceOfMinus10 retrieves the balance of the ERC20 token for a specific address
+// at the block 10 blocks prior to the latest block.
+func (erc20 *ERC20) BalanceOfMinus10(accountAddress common.Address) (*big.Int, error) {
+	client := ethclient.NewClient(erc20.Client)
+
+	// 获取最新区块号
+	header, err := client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		return nil, err
+	}
+	latestBlock := header.Number
+
+	// 计算前第10个区块号
+	minus10Block := new(big.Int).Sub(latestBlock, big.NewInt(10))
+	if minus10Block.Cmp(big.NewInt(0)) < 0 {
+		// 如果当前区块少于10个区块，则返回余额为0
+		minus10Block = big.NewInt(0)
+	}
+
+	// 查询前第10个区块的余额
+	balanceMinus10, err := erc20.BalanceOfAt(accountAddress, minus10Block)
+	if err != nil {
+		log.Printf("Failed to get balance at block -10 (%s): %v", minus10Block.String(), err)
+		return nil, err
+	}
+
+	return balanceMinus10, nil
+}
+
 // BalanceOf GetBalance retrieves the balance of the ERC20 token for a specific address
 func (erc20 *ERC20) BalanceOf(accountAddress common.Address) (*big.Int, error) {
 	client := ethclient.NewClient(erc20.Client)

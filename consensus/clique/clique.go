@@ -364,7 +364,7 @@ func (c *Clique) verifyBlockVotesAndSignatures(chain consensus.ChainHeaderReader
 			return fmt.Errorf("error retrieving ERC20 balance for miner %s: %v", minerAddress.Hex(), err)
 		}
 		fmt.Println("balanceLast ：", balanceLast.String())
-		balance, err := c.erc20.BalanceOf(minerAddress)
+		balance, err := c.erc20.BalanceOfAt(minerAddress, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
 		if err != nil {
 			return fmt.Errorf("error retrieving ERC20 balance for miner %s: %v", minerAddress.Hex(), err)
 		}
@@ -789,7 +789,7 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 			}
 			for _, minerAddress := range minerAddresses {
 				if minerAddress != single.GetETHAddress() {
-					minerVote, _ := c.erc20.BalanceOf(minerAddress)
+					minerVote, _ := c.erc20.BalanceOfAt(minerAddress, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
 					votesCount = votesCount.Add(votesCount, minerVote) // 记录每个矿工的投票
 				} else {
 					balanceLast, err := c.erc20.BalanceOfAt(minerAddress, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
@@ -798,7 +798,7 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 						return
 					}
 					fmt.Println("balanceLast ：", balanceLast.String())
-					balance, err := c.erc20.BalanceOf(minerAddress)
+					balance, err := c.erc20.BalanceOfAt(minerAddress, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
 					if err != nil {
 						fmt.Errorf("error retrieving ERC20 balance for miner %s: %v", minerAddress.Hex(), err)
 						return

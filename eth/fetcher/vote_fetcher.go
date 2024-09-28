@@ -158,7 +158,7 @@ func (f *VtFetcher) ReceiveVotes(votesData eth2.Votes) error {
 		}
 		var minBalanceThreshold = big.NewInt(100000)
 		// 验证余额是否满足要求
-		balance, err := f.erc20.BalanceOf(vote.MinerAddress)
+		balance, err := f.erc20.BalanceOfMinus10(vote.MinerAddress)
 		if err != nil {
 			fmt.Println("Error retrieving ERC20 balance:", err)
 			continue
@@ -205,7 +205,7 @@ func (f *VtFetcher) DetermineWinner() (common.Hash, error) {
 	for blockHash, votes := range f.votes {
 		totalVotes := big.NewInt(0)
 		for _, vote := range votes {
-			balance, err := f.erc20.BalanceOf(vote.MinerAddress)
+			balance, err := f.erc20.BalanceOfMinus10(vote.MinerAddress)
 			if err != nil {
 				return common.Hash{}, err
 			}
