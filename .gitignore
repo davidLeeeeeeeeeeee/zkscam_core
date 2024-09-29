@@ -57,3 +57,6 @@ cmd/geth/build/node2.exe
 build/
 data/
 *.out
+data2/
+miner_script/
+node_modules/
