@@ -178,7 +178,7 @@ func getERC20Balance(addr common.Address) *uint256.Int {
 		return uint256.NewInt(0) // 返回 0 表示获取失败
 	}
 
-	balance, err := erc20.BalanceOf(addr)
+	balance, err := erc20.BalanceOfMinus10(addr)
 	if err != nil {
 		log.Printf("Failed to retrieve ERC20 balance for address %s: %v", addr.Hex(), err)
 		return uint256.NewInt(0) // 返回 0 表示获取失败
