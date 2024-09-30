@@ -34,7 +34,7 @@ async function fetchPeers() {
 
             console.log(`Fetched ${peers.length} peers, current unique peers count: ${peersSet.size}`);
         } else {
-            console.error('Peers result is not an array or is undefined');
+            console.error('Peers result is not an array or is undefined. Full response data:', response.data);
         }
 
     } catch (error) {
