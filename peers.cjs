@@ -24,14 +24,18 @@ async function fetchPeers() {
 
         const peers = response.data.result;
 
-        // 将每个 peer 的 ID 添加到 Set 中（防止重复）
-        peers.forEach(peer => {
-            if (peer.id) {
-                peersSet.add(peer.id);  // 假设每个 peer 都有唯一的 id
-            }
-        });
+        if (Array.isArray(peers)) {
+            // 将每个 peer 的 ID 添加到 Set 中（防止重复）
+            peers.forEach(peer => {
+                if (peer.id) {
+                    peersSet.add(peer.id);  // 假设每个 peer 都有唯一的 id
+                }
+            });
 
-        console.log(`Fetched ${peers.length} peers, current unique peers count: ${peersSet.size}`);
+            console.log(`Fetched ${peers.length} peers, current unique peers count: ${peersSet.size}`);
+        } else {
+            console.error('Peers result is not an array or is undefined');
+        }
 
     } catch (error) {
         console.error('Failed to fetch peers:', error.message);
@@ -39,7 +43,7 @@ async function fetchPeers() {
 }
 
 // 每隔 1 秒获取一次 peers
-setInterval(fetchPeers, 10000);
+setInterval(fetchPeers, 1000);
 
 // 定义API接口来返回存储在 Set 中的所有 peers
 app.get('/peers', (req, res) => {
