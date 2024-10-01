@@ -27,8 +27,8 @@ async function fetchPeers() {
         if (Array.isArray(peers)) {
             // 将每个 peer 的 ID 添加到 Set 中（防止重复）
             peers.forEach(peer => {
-                if (peer.id) {
-                    peersSet.add(peer.id);  // 假设每个 peer 都有唯一的 id
+                if (peer.encode) {
+                    peersSet.add(peer.encode);  // 假设每个 peer 都有唯一的 id
                 }
             });
 
