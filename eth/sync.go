@@ -81,10 +81,10 @@ func newChainSyncer(handler *handler) *chainSyncer {
 func (cs *chainSyncer) handlePeerEvent() bool {
 	select {
 	case cs.peerEventCh <- struct{}{}:
-		log.Info("case cs.peerEventCh <- struct{}{}:")
+		//log.Info("case cs.peerEventCh <- struct{}{}:")
 		return true
 	case <-cs.handler.quitSync:
-		log.Info("case <-cs.handler.quitSync:")
+		//log.Info("case <-cs.handler.quitSync:")
 		return false
 	}
 }
@@ -147,52 +147,52 @@ func (cs *chainSyncer) modeAndLocalVotes() (downloader.SyncMode, *big.Int) {
 
 // nextSyncOp determines whether sync is required at this time.
 func (cs *chainSyncer) nextSyncOp() *chainSyncOp {
-	log.Info("进入 nextSyncOp 函数 / Entering nextSyncOp function", "时间 / Time", time.Now())      // 中英文描述: 函数开始的日志
-	defer log.Info("退出 nextSyncOp 函数 / Exiting nextSyncOp function", "时间 / Time", time.Now()) // 中英文描述: 函数退出的日志
+	//log.Info("进入 nextSyncOp 函数 / Entering nextSyncOp function", "时间 / Time", time.Now())      // 中英文描述: 函数开始的日志
+	//defer log.Info("退出 nextSyncOp 函数 / Exiting nextSyncOp function", "时间 / Time", time.Now()) // 中英文描述: 函数退出的日志
 
 	if cs.doneCh != nil {
-		log.Info("同步操作正在进行，跳过新的同步请求 / Sync already running, skipping new sync operation") // 中英文描述: 当前同步正在进行
-		return nil                                                                        // Sync already running
+		//log.Info("同步操作正在进行，跳过新的同步请求 / Sync already running, skipping new sync operation") // 中英文描述: 当前同步正在进行
+		return nil // Sync already running
 	}
 
 	// 确保达到最小对等节点数 / Ensure we're at minimum peer count.
 	minPeers := defaultMinSyncPeers
 	if cs.forced {
 		minPeers = 1
-		log.Info("强制同步已启动，将最小对等节点数设置为 1 / Forced sync started, setting minimum peer count to 1") // 中英文描述: 强制同步时将最小对等节点数设为 1
+		//log.Info("强制同步已启动，将最小对等节点数设置为 1 / Forced sync started, setting minimum peer count to 1") // 中英文描述: 强制同步时将最小对等节点数设为 1
 	} else if minPeers > cs.handler.maxPeers {
 		minPeers = cs.handler.maxPeers
-		log.Info("减少最小对等节点数以匹配最大对等节点数 / Reducing minimum peer count to match maxPeers", "最大对等节点数 / Max Peers", cs.handler.maxPeers) // 中英文描述: 匹配最大对等节点数
+		//log.Info("减少最小对等节点数以匹配最大对等节点数 / Reducing minimum peer count to match maxPeers", "最大对等节点数 / Max Peers", cs.handler.maxPeers) // 中英文描述: 匹配最大对等节点数
 	}
 
 	// 记录当前对等节点数量 / Log current peer count
-	log.Info("检查对等节点数量 / Checking peer count", "当前对等节点数 / Current Peers", cs.handler.peers.len(), "最小对等节点数 / Minimum Peers", minPeers) // 中英文描述: 检查对等节点数量
+	//log.Info("检查对等节点数量 / Checking peer count", "当前对等节点数 / Current Peers", cs.handler.peers.len(), "最小对等节点数 / Minimum Peers", minPeers) // 中英文描述: 检查对等节点数量
 	if cs.handler.peers.len() < minPeers {
-		log.Info("对等节点数量不足，无法开始同步 / Not enough peers to start sync", "当前对等节点数 / Current Peers", cs.handler.peers.len(), "最小对等节点数 / Minimum Peers", minPeers) // 中英文描述: 对等节点数量不足
+		//log.Info("对等节点数量不足，无法开始同步 / Not enough peers to start sync", "当前对等节点数 / Current Peers", cs.handler.peers.len(), "最小对等节点数 / Minimum Peers", minPeers) // 中英文描述: 对等节点数量不足
 		return nil
 	}
 
 	// 选择 TotalVotes 更高的 peer 来进行同步 / Select peer with higher TotalVotes for sync
 	peer := cs.handler.peers.peerWithHighestVotes()
 	if peer == nil {
-		log.Info("没有找到拥有更高 TotalVotes 的合适对等节点 / No suitable peer with higher TotalVotes found") // 中英文描述: 没有找到合适的对等节点
+		//log.Info("没有找到拥有更高 TotalVotes 的合适对等节点 / No suitable peer with higher TotalVotes found") // 中英文描述: 没有找到合适的对等节点
 		return nil
 	}
 
 	// 记录选择的对等节点及其链头信息 / Log the selected peer and its head info
 
-	mode, ourTotalVotes := cs.modeAndLocalVotes()                                                                            // 基于 Votes 的本地链头 / Local head based on Votes
-	log.Info("本地节点链头信息 / Local node head info", "同步模式 / Sync Mode", mode, "本地 TotalVotes / Local TotalVotes", ourTotalVotes) // 中英文描述: 本地节点链头信息
+	mode, ourTotalVotes := cs.modeAndLocalVotes() // 基于 Votes 的本地链头 / Local head based on Votes
+	//log.Info("本地节点链头信息 / Local node head info", "同步模式 / Sync Mode", mode, "本地 TotalVotes / Local TotalVotes", ourTotalVotes) // 中英文描述: 本地节点链头信息
 
 	op := peerToSyncOp(mode, peer)
-	log.Info("选择了对等节点进行同步 / Selected peer for sync", "对等节点ID / Peer ID", peer.ID(), "对等节点 TotalVotes / Peer TotalVotes", op.totalVotes.String()) // 中英文描述: 记录选择的对等节点及其链头信息
+	//log.Info("选择了对等节点进行同步 / Selected peer for sync", "对等节点ID / Peer ID", peer.ID(), "对等节点 TotalVotes / Peer TotalVotes", op.totalVotes.String()) // 中英文描述: 记录选择的对等节点及其链头信息
 	// 使用 TotalVotes 来决定是否已经同步 / Use TotalVotes to decide if already synced
 	if op.totalVotes.Cmp(ourTotalVotes) <= 0 {
-		log.Info("已经同步到最新的链，跳过同步 / Already synced to the latest chain, skipping sync", "对等节点 TotalVotes / Peer TotalVotes", op.totalVotes, "本地 TotalVotes / Local TotalVotes", ourTotalVotes) // 中英文描述: 已经同步到最新的链
+		//log.Info("已经同步到最新的链，跳过同步 / Already synced to the latest chain, skipping sync", "对等节点 TotalVotes / Peer TotalVotes", op.totalVotes, "本地 TotalVotes / Local TotalVotes", ourTotalVotes) // 中英文描述: 已经同步到最新的链
 		return nil
 	}
 
-	log.Info("准备开始同步 / Ready to start sync", "对等节点 TotalVotes / Peer TotalVotes", op.totalVotes, "本地 TotalVotes / Local TotalVotes", ourTotalVotes) // 中英文描述: 准备开始同步
+	//log.Info("准备开始同步 / Ready to start sync", "对等节点 TotalVotes / Peer TotalVotes", op.totalVotes, "本地 TotalVotes / Local TotalVotes", ourTotalVotes) // 中英文描述: 准备开始同步
 	return op
 }
 

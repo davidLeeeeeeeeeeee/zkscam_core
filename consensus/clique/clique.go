@@ -363,12 +363,12 @@ func (c *Clique) verifyBlockVotesAndSignatures(chain consensus.ChainHeaderReader
 		if err != nil {
 			return fmt.Errorf("error retrieving ERC20 balance for miner %s: %v", minerAddress.Hex(), err)
 		}
-		fmt.Println("balanceLast ：", balanceLast.String())
+		//fmt.Println("balanceLast ：", balanceLast.String())
 		balance, err := c.erc20.BalanceOfAt(minerAddress, new(big.Int).Sub(header.Number, big.NewInt(miner_waiting_block)))
 		if err != nil {
 			return fmt.Errorf("error retrieving ERC20 balance for miner %s: %v", minerAddress.Hex(), err)
 		}
-		fmt.Println("balance ：", balance.String())
+		//fmt.Println("balance ：", balance.String())
 		result := balanceLast.Cmp(balance)
 
 		// 根据比较结果执行操作

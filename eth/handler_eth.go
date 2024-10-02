@@ -66,7 +66,7 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	// Consume any broadcasts and announces, forwarding the rest to the downloader
 	switch packet := packet.(type) {
 	case *eth.NewBlockHashesPacket:
-		log.Info("handling new block hashes packet")
+		//log.Info("handling new block hashes packet")
 		hashes, numbers, totalVotes, phashes := packet.Unpack()
 		return h.handleBlockAnnounces(peer, hashes, numbers, totalVotes, phashes)
 
