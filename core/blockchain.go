@@ -360,7 +360,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 			if diskRoot != (common.Hash{}) {
 				log.Warn("Head state missing, repairing", "number", head.Number, "hash", head.Hash(), "snaproot", diskRoot)
 
-				snapDisk, err := bc.setHeadBeyondRoot(head.Number.Uint64(), 0, diskRoot, true)
+				snapDisk, err := bc.setHeadBeyondRoot(head.Number.Uint64(), 0, diskRoot, true, false)
 				if err != nil {
 					return nil, err
 				}
@@ -370,7 +370,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, genesis *Genesis
 				}
 			} else {
 				log.Warn("Head state missing, repairing", "number", head.Number, "hash", head.Hash())
-				if _, err := bc.setHeadBeyondRoot(head.Number.Uint64(), 0, common.Hash{}, true); err != nil {
+				if _, err := bc.setHeadBeyondRoot(head.Number.Uint64(), 0, common.Hash{}, true, false); err != nil {
 					return nil, err
 				}
 			}
@@ -567,7 +567,7 @@ func (bc *BlockChain) loadLastState() error {
 // was snap synced or full synced and in which state, the method will try to
 // delete minimal data from disk whilst retaining chain consistency.
 func (bc *BlockChain) SetHead(head uint64) error {
-	if _, err := bc.setHeadBeyondRoot(head, 0, common.Hash{}, false); err != nil {
+	if _, err := bc.setHeadBeyondRoot(head, 0, common.Hash{}, false, false); err != nil {
 		return err
 	}
 	// Send chain head event to update the transaction pool
@@ -589,7 +589,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 // synced and in which state, the method will try to delete minimal data from
 // disk whilst retaining chain consistency.
 func (bc *BlockChain) SetHeadWithTimestamp(timestamp uint64) error {
-	if _, err := bc.setHeadBeyondRoot(0, timestamp, common.Hash{}, false); err != nil {
+	if _, err := bc.setHeadBeyondRoot(0, timestamp, common.Hash{}, false, false); err != nil {
 		return err
 	}
 	// Send chain head event to update the transaction pool
@@ -640,11 +640,13 @@ func (bc *BlockChain) SetSafe(header *types.Header) {
 // requested time. If both `head` and `time` is 0, the chain is rewound to genesis.
 //
 // The method returns the block number where the requested root cap was found.
-func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Hash, repair bool) (uint64, error) {
-	if !bc.chainmu.TryLock() {
-		return 0, errChainStopped
+func (bc *BlockChain) setHeadBeyondRoot(head uint64, time uint64, root common.Hash, repair bool, alreadyLocked bool) (uint64, error) {
+	if !alreadyLocked {
+		if !bc.chainmu.TryLock() {
+			return 0, errChainStopped
+		}
+		defer bc.chainmu.Unlock()
 	}
-	defer bc.chainmu.Unlock()
 
 	// Track the block number of the requested root hash
 	var rootNumber uint64 // (no root == always 0)
@@ -1443,17 +1445,44 @@ func (bc *BlockChain) WriteBlockAndSetHead(block *types.Block, receipts []*types
 // writeBlockAndSetHead is the internal implementation of WriteBlockAndSetHead.
 // This function expects the chain mutex to be held.
 func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
+	// 写入区块和状态
 	if err := bc.writeBlockWithState(block, receipts, state); err != nil {
 		return NonStatTy, err
 	}
 	currentBlock := bc.CurrentBlock()
+
+	// 判断是否需要进行链重组
 	reorg, err := bc.forker.ReorgNeeded(currentBlock, block.Header())
 	if err != nil {
 		return NonStatTy, err
 	}
+
+	// 设置回滚检查区块号
+	RollbackCheckNumber := big.NewInt(400)
+	if block.Number().Cmp(RollbackCheckNumber) > 0 {
+		log.Info("Starting rollback")
+		rollbackTo := new(big.Int).Sub(block.Number(), RollbackCheckNumber)
+
+		// 执行回滚操作
+		if err := bc.Rollback(rollbackTo, true); err != nil {
+			log.Warn("Rollback failed", "err", err)
+			// 如果回滚失败，可以进行额外处理，比如记录日志或采取其他措施
+		} else {
+			// 回滚成功，将链头设置为回滚后的区块
+			newBlock := bc.GetBlockByNumber(rollbackTo.Uint64())
+			if newBlock != nil {
+				log.Info("Rollback successful, updating current block", "newBlock", newBlock.Number().Uint64())
+				block = newBlock // 将当前区块更新为回滚后的区块
+				currentBlock = newBlock.Header()
+			} else {
+				log.Warn("Failed to get block after rollback", "rollbackTo", rollbackTo.Uint64())
+			}
+		}
+	}
+
+	// 如果需要重组，进行链重组
 	if reorg {
-		// Reorganise the chain if the parent is not the head block
-		log.Info("block.ParentHash() ?= currentBlock.Hash()", block.ParentHash(), currentBlock.Hash())
+		// 如果父区块哈希不匹配，进行重组操作
 		if block.ParentHash() != currentBlock.Hash() {
 			if err := bc.reorg(currentBlock, block); err != nil {
 				return NonStatTy, err
@@ -1463,28 +1492,26 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 	} else {
 		status = SideStatTy
 	}
-	// Set new head.
+
+	// 更新链头
 	if status == CanonStatTy {
 		bc.writeHeadBlock(block)
 	}
 	bc.futureBlocks.Remove(block.Hash())
 
+	// 发送链事件
 	if status == CanonStatTy {
 		bc.chainFeed.Send(ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 		if len(logs) > 0 {
 			bc.logsFeed.Send(logs)
 		}
-		// In theory, we should fire a ChainHeadEvent when we inject
-		// a canonical block, but sometimes we can insert a batch of
-		// canonical blocks. Avoid firing too many ChainHeadEvents,
-		// we will fire an accumulated ChainHeadEvent and disable fire
-		// event here.
 		if emitHeadEvent {
 			bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
 		}
 	} else {
 		bc.chainSideFeed.Send(ChainSideEvent{Block: block})
 	}
+
 	return status, nil
 }
 
@@ -2274,6 +2301,57 @@ func (bc *BlockChain) reorg(oldHead *types.Header, newHead *types.Block) error {
 	if len(rebirthLogs) > 0 {
 		bc.logsFeed.Send(rebirthLogs)
 	}
+	return nil
+}
+func (bc *BlockChain) Rollback(toBlockNumber *big.Int, alreadyLocked bool) error {
+	if !alreadyLocked {
+		if !bc.chainmu.TryLock() {
+			return errChainStopped
+		}
+		defer bc.chainmu.Unlock()
+	}
+
+	currentHead := bc.CurrentBlock()
+	if currentHead == nil {
+		return errors.New("current head block is missing")
+	}
+	if toBlockNumber.Cmp(currentHead.Number) >= 0 {
+		return errors.New("the target block number for rollback must be less than the current head")
+	}
+
+	// Before deleting, verify that the next block after the target block cannot pass validation
+	nextBlockNumber := new(big.Int).Add(toBlockNumber, big.NewInt(1))
+	nextBlock := bc.GetBlockByNumber(nextBlockNumber.Uint64())
+	if nextBlock == nil {
+		// If the next block does not exist, we are at the end of the chain, proceed with rollback
+		log.Warn("The next block after the target block does not exist, proceeding with rollback")
+	} else {
+		// Verify whether the header of the next block is valid
+		if err := bc.engine.VerifyHeader(bc, nextBlock.Header()); err == nil {
+			// If the verification passes, the next block is valid, rollback is not allowed
+			return errors.New("the next block can pass verification, rollback is prohibited")
+		}
+		// If verification fails, proceed with rollback
+		log.Info("Next block verification failed, proceeding with rollback")
+	}
+
+	log.Info("Starting rollback", "from", currentHead.Number.String(), "to", toBlockNumber.String())
+
+	// Use setHeadBeyondRoot method to rollback the chain and state tree
+	if _, err := bc.setHeadBeyondRoot(toBlockNumber.Uint64(), 0, common.Hash{}, false, true); err != nil {
+		return err
+	}
+	log.Info("header := bc.CurrentBlock()")
+	// Send chain head event to update transaction pool
+	header := bc.CurrentBlock()
+	block := bc.GetBlock(header.Hash(), header.Number.Uint64())
+	if block == nil {
+		log.Error("Current block not found in database", "block number", header.Number, "hash", header.Hash())
+		return fmt.Errorf("current block missing: #%d [%x..]", header.Number, header.Hash().Bytes()[:4])
+	}
+	bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
+
+	log.Info("Rollback completed successfully")
 	return nil
 }
 

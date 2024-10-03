@@ -1264,7 +1264,9 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 	if len(head.AuthBLSSignatures) > 0 {
 		result["authBLSSignatures"] = head.AuthBLSSignatures
 	}
-
+	if len(head.AggregatedSignature) > 0 {
+		result["aggregatedSignature"] = head.AggregatedSignature
+	}
 	return result
 }
 

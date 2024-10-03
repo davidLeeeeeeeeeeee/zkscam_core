@@ -411,7 +411,8 @@ func (c *Clique) verifyBlockVotesAndSignatures(chain consensus.ChainHeaderReader
 	// 6. 验证当前区块票数是否匹配
 	if header.Votes != nil {
 		if header.Votes.Cmp(votesCount) != 0 {
-			fmt.Println("total votes  header has %d total votes, expected %d total votes", header.Votes, votesCount)
+			fmt.Printf("total votes: header has %d total votes, expected %d total votes\n", header.Votes, votesCount)
+
 			return fmt.Errorf("votes count mismatch: header has %d votes, but calculated %d votes", header.Votes, votesCount)
 		}
 	} else {
@@ -435,7 +436,7 @@ func (c *Clique) verifyBlockVotesAndSignatures(chain consensus.ChainHeaderReader
 	}
 
 	if header.TotalVotes.Cmp(expectedTotalVotes) != 0 {
-		fmt.Println("total votes mismatch: header has %d total votes, but expected %d total votes", header.TotalVotes, expectedTotalVotes)
+		fmt.Printf("total votes mismatch: header has %d total votes, but expected %d total votes", header.TotalVotes, expectedTotalVotes)
 		return fmt.Errorf("total votes mismatch: header has %d total votes, but expected %d total votes", header.TotalVotes, expectedTotalVotes)
 	}
 

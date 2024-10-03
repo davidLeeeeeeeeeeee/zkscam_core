@@ -173,12 +173,12 @@ type intervalAdjust struct {
 // worker is the main object which takes care of submitting new work to consensus engine
 // and gathering the sealing result.
 type worker struct {
-	config      *Config
-	chainConfig *params.ChainConfig
-	engine      consensus.Engine
-	eth         Backend
-	chain       *core.BlockChain
-
+	config            *Config
+	chainConfig       *params.ChainConfig
+	engine            consensus.Engine
+	eth               Backend
+	chain             *core.BlockChain
+	currentTaskStopCh chan struct{} // 用于中断当前挖矿任务
 	// Feeds
 	pendingLogsFeed event.Feed
 
@@ -417,6 +417,12 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 	}
 	return time.Duration(int64(next))
 }
+func (w *worker) interruptCurrentTask() {
+	if w.currentTaskStopCh != nil {
+		close(w.currentTaskStopCh)
+		w.currentTaskStopCh = nil
+	}
+}
 
 // newWorkLoop is a standalone goroutine to submit new sealing work upon received events.
 func (w *worker) newWorkLoop(recommit time.Duration) {
@@ -469,7 +475,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			commit(commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
-			log.Info("w.chainHeadCh")
+
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			commit(commitInterruptNewHead)
@@ -626,6 +632,7 @@ func (w *worker) taskLoop() {
 	for {
 		select {
 		case task := <-w.taskCh:
+
 			log.Info("task := <-w.taskCh:")
 			if w.newTaskHook != nil {
 				w.newTaskHook(task)
@@ -647,7 +654,8 @@ func (w *worker) taskLoop() {
 			w.pendingMu.Lock()
 			w.pendingTasks[sealHash] = task
 			w.pendingMu.Unlock()
-
+			// 将当前的 stopCh 传递给共识引擎
+			stopCh := w.currentTaskStopCh
 			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
 				log.Warn("Block sealing failed", "err", err)
 				w.pendingMu.Lock()
@@ -671,6 +679,14 @@ func (w *worker) resultLoop() {
 		select {
 		case block := <-w.resultCh:
 			log.Info("case block := <-w.resultCh:")
+
+			select {
+			case <-w.currentTaskStopCh:
+				log.Warn("Mining task has been interrupted, discarding result", "number", block.Number(), "hash", block.Hash())
+				continue
+			default:
+				// 任务仍然有效，继续处理
+			}
 			// Short circuit when receiving empty result.
 			if block == nil {
 				log.Info("block == nil; w.mux.Post(core.NewMinedBlockEvent{Block: block})")
@@ -724,6 +740,14 @@ func (w *worker) resultLoop() {
 				log.Error("Failed writing block to chain", "err", err)
 				continue
 			}
+			// 检查新的链头是否比当前的链头更早（回退）
+			//currentBlock := w.chain.CurrentBlock()
+			//log.Info("block.Header()", block.Header().Number.String(), "currentBlock", currentBlock.Number.String())
+			//if block.Header().Number.Uint64() < currentBlock.Number.Uint64() {
+			//	log.Info("Chain head has been rolled back", "oldNumber", currentBlock.Number.Uint64(), "newNumber", block.Header().Number.Uint64())
+			//	// 中断当前的挖矿任务
+			//	w.interruptCurrentTask()
+			//}
 			log.Info("Successfully sealed new block", "number", block.Number(), "sealhash", sealhash, "hash", hash,
 				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
 
@@ -962,7 +986,9 @@ type generateParams struct {
 func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+
 	// 找到最新的父区块（也就是链头）
+
 	// Find the parent block for sealing task
 	parent := w.chain.CurrentBlock()
 	if genParams.parentHash != (common.Hash{}) {
@@ -972,6 +998,7 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		}
 		parent = block.Header()
 	}
+
 	// Sanity check the timestamp correctness, recap the timestamp
 	// to parent+1 if the mutation is allowed.
 	timestamp := genParams.timestamp
@@ -1155,6 +1182,8 @@ func (w *worker) generateWork(params *generateParams) *newPayloadResult {
 // commitWork generates several new sealing tasks based on the parent block
 // and submit them to the sealer.
 func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
+	// 中断当前的挖矿任务
+	w.interruptCurrentTask()
 	// Abort committing if node is still syncing
 	if w.syncing.Load() {
 		return
@@ -1206,6 +1235,8 @@ func (w *worker) commitWork(interrupt *atomic.Int32, timestamp int64) {
 		work.discard()
 		return
 	}
+	// 为新的挖矿任务创建 stopCh
+	w.currentTaskStopCh = make(chan struct{})
 	// Submit the generated block for consensus sealing.
 	w.commit(work.copy(), w.fullTaskHook, true, start)
 
