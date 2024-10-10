@@ -54,9 +54,9 @@ go.sum
 cmd/geth/build/go_build_github_com_ethereum_go_ethereum_cmd_geth.exe
 cmd/geth/build/node1.exe
 cmd/geth/build/node2.exe
-build/
 data/
 *.out
 data2/
 miner_script/
 node_modules/
+*.exe
