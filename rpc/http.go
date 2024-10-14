@@ -23,11 +23,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"math"
 	"mime"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -341,65 +338,27 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // validateRequest returns a non-zero response code and error message if the
 // request is invalid.
 func (s *Server) validateRequest(r *http.Request) (int, error) {
-
-	// 检查请求方法是否是 PUT 或 DELETE
 	if r.Method == http.MethodPut || r.Method == http.MethodDelete {
 		return http.StatusMethodNotAllowed, errors.New("method not allowed")
 	}
-
-	// 检查请求体的长度是否超过限制
 	if r.ContentLength > int64(s.httpBodyLimit) {
 		err := fmt.Errorf("content length too large (%d>%d)", r.ContentLength, s.httpBodyLimit)
 		return http.StatusRequestEntityTooLarge, err
 	}
-
-	// 允许 OPTIONS 请求
+	// Allow OPTIONS (regardless of content-type)
 	if r.Method == http.MethodOptions {
 		return 0, nil
 	}
-
-	// 检查 content-type
+	// Check content-type
 	if mt, _, err := mime.ParseMediaType(r.Header.Get("content-type")); err == nil {
 		for _, accepted := range acceptedContentTypes {
 			if accepted == mt {
-
-				// 检查是否正在调用 personal_importRawKey
-				if r.Method == http.MethodPost && r.ContentLength > 0 {
-					// 缓存请求体
-					bodyBytes, err := ioutil.ReadAll(r.Body)
-					if err != nil {
-						return http.StatusBadRequest, fmt.Errorf("failed to read request body")
-					}
-					r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes)) // 将读取的 body 写回
-
-					var reqBody map[string]interface{}
-					if err := json.Unmarshal(bodyBytes, &reqBody); err != nil {
-						return http.StatusBadRequest, fmt.Errorf("invalid JSON request body")
-					}
-
-					// 检查请求方法是否是 personal_importRawKey
-					if method, ok := reqBody["method"].(string); ok {
-						if method == "personal_importRawKey" {
-							// 获取调用方的 IP 地址
-							remoteIP, _, _ := net.SplitHostPort(r.RemoteAddr)
-
-							// 检查是否为本地 IP
-							if remoteIP != "127.0.0.1" && remoteIP != "::1" {
-								return http.StatusForbidden, fmt.Errorf("private key import only allowed from localhost")
-							}
-						}
-					}
-				}
 				return 0, nil
 			}
 		}
-	} else {
-		log.Printf("Failed to parse media type: %v", err) // 打印解析媒体类型失败的信息
 	}
-
-	// 打印不支持的 content-type 错误
+	// Invalid content-type
 	err := fmt.Errorf("invalid content type, only %s is supported", contentType)
-	log.Printf("Invalid content type: %s", r.Header.Get("content-type")) // 打印不支持的 content-type
 	return http.StatusUnsupportedMediaType, err
 }
 
