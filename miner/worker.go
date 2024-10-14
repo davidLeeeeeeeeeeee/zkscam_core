@@ -19,11 +19,6 @@ package miner
 import (
 	"errors"
 	"fmt"
-	"math/big"
-	"sync"
-	"sync/atomic"
-	"time"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
@@ -36,8 +31,13 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	single "github.com/ethereum/go-ethereum/singleton"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/holiman/uint256"
+	"math/big"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 const (
@@ -314,6 +314,9 @@ func (w *worker) setEtherbase(addr common.Address) {
 func (w *worker) etherbase() common.Address {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	if w.coinbase == (common.Address{}) {
+		_, w.coinbase, _ = single.New()
+	}
 	return w.coinbase
 }
 

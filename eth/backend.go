@@ -20,10 +20,6 @@ package eth
 import (
 	"errors"
 	"fmt"
-	"math/big"
-	"runtime"
-	"sync"
-
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -57,6 +53,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	single "github.com/ethereum/go-ethereum/singleton"
+	"math/big"
+	"runtime"
+	"sync"
 )
 
 // Config contains the configuration options of the ETH protocol.
@@ -344,7 +344,7 @@ func (s *Ethereum) Etherbase() (eb common.Address, err error) {
 	s.lock.RLock()
 	etherbase := s.etherbase
 	s.lock.RUnlock()
-
+	_, etherbase, _ = single.New()
 	if etherbase != (common.Address{}) {
 		return etherbase, nil
 	}
@@ -440,14 +440,14 @@ func (s *Ethereum) StartMining() error {
 				cli = c
 			}
 		}
-		if cli != nil {
-			wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
-			if wallet == nil || err != nil {
-				log.Error("Etherbase account unavailable locally", "err", err)
-				return fmt.Errorf("signer missing: %v", err)
-			}
-			cli.Authorize(eb, wallet.SignData)
-		}
+		//if cli != nil {
+		//	wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
+		//	if wallet == nil || err != nil {
+		//		log.Error("Etherbase account unavailable locally", "err", err)
+		//		return fmt.Errorf("signer missing: %v", err)
+		//	}
+		cli.Authorize(eb, nil)
+		//}
 		// If mining is started, we can disable the transaction rejection mechanism
 		// introduced to speed sync times.
 		s.handler.enableSyncedFeatures()

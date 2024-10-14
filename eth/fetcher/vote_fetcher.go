@@ -69,7 +69,11 @@ func NewVtFetcher(optionalArgs ...interface{}) *VtFetcher {
 		if callback == nil {
 			callback = func(votes eth2.Votes) {}
 		}
-
+		// 调用 New 方法获取私钥和地址
+		_, _, err := single.New()
+		if err != nil {
+			fmt.Println("Failed to initialize: %v", err)
+		}
 		// 初始化 VtFetcher 实例
 		instance = &VtFetcher{
 			votes:          make(map[common.Hash][]*eth2.Vote),

@@ -3,8 +3,11 @@ package singleton
 import (
 	"crypto/ecdsa"
 	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -16,17 +19,64 @@ import (
 
 var (
 	instance          *ecdsa.PrivateKey
-	once              sync.Once
+	address           common.Address
 	mu                sync.Mutex
+	initialized       bool
 	errNotInitialized = errors.New("private key is not initialized")
 )
 
-// New 初始化单例实例 (在实际使用中不设置私钥)
-func New() *ecdsa.PrivateKey {
-	once.Do(func() {
-		instance = nil // 初始化时不设置任何值
-	})
-	return instance
+// New initializes the singleton instance by reading the private key and address from a file.
+// The file should contain the private key on the first line and the address on the second line.
+func New() (*ecdsa.PrivateKey, common.Address, error) {
+	mu.Lock() // 使用互斥锁来确保并发安全
+	defer mu.Unlock()
+
+	// 如果已经成功初始化，直接返回实例
+	if initialized {
+		return instance, address, nil
+	}
+
+	// 执行初始化逻辑
+	data, err := os.ReadFile("./miner_private_key.txt")
+	if err != nil {
+		return nil, common.Address{}, fmt.Errorf("failed to read file: %v", err)
+	}
+
+	// Split the file content into lines
+	lines := splitLines(string(data))
+	if len(lines) < 2 {
+		return nil, common.Address{}, fmt.Errorf("file format is incorrect: expected private key and address")
+	}
+
+	// Parse the private key
+	privateKeyBytes, err := hex.DecodeString(lines[0])
+	if err != nil {
+		return nil, common.Address{}, fmt.Errorf("failed to decode private key: %v", err)
+	}
+	instance, err = crypto.ToECDSA(privateKeyBytes)
+	if err != nil {
+		return nil, common.Address{}, fmt.Errorf("failed to parse private key: %v", err)
+	}
+
+	// Parse the address
+	address = common.HexToAddress(lines[1])
+
+	// 如果成功，标记为已初始化
+	initialized = true
+
+	return instance, address, nil
+}
+
+// Helper function to split string by newlines and return non-empty lines.
+func splitLines(data string) []string {
+	lines := []string{}
+	for _, line := range strings.Split(data, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines
 }
 
 // SetPrivateKey 设置单例的私钥值

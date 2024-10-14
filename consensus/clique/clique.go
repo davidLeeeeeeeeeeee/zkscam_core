@@ -217,6 +217,11 @@ type Clique struct {
 // New creates a Clique proof-of-authority consensus engine with the initial
 // signers set to the ones provided by the user.
 func New(config *params.CliqueConfig, db ethdb.Database) *Clique {
+	// 调用 New 方法获取私钥和地址
+	_, _, err := single.New()
+	if err != nil {
+		fmt.Println("Failed to initialize: %v", err)
+	}
 	// Set any missing consensus parameters to their defaults
 	conf := *config
 	if conf.Epoch == 0 {
@@ -226,6 +231,7 @@ func New(config *params.CliqueConfig, db ethdb.Database) *Clique {
 	recents := lru.NewCache[common.Hash, *Snapshot](inmemorySnapshots)
 	signatures := lru.NewCache[common.Hash, common.Address](inmemorySignatures)
 	erc20, _ := contracts.NewERC20()
+
 	return &Clique{
 		config:     &conf,
 		db:         db,

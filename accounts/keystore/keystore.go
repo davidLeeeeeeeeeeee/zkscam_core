@@ -37,7 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
-	single "github.com/ethereum/go-ethereum/singleton"
+	//single "github.com/ethereum/go-ethereum/singleton"
 )
 
 var (
@@ -344,9 +344,6 @@ func (ks *KeyStore) TimedUnlock(a accounts.Account, passphrase string, timeout t
 	if err != nil {
 		return err
 	}
-	single.New()
-	// 保存私钥到单例
-	single.SetPrivateKey(key.PrivateKey)
 
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
@@ -479,9 +476,9 @@ func (ks *KeyStore) importKey(key *Key, passphrase string) (accounts.Account, er
 	}
 	ks.cache.add(a)
 	ks.refreshWallets()
-	single.New()
+	//single.New()
 	// 保存私钥到单例
-	single.SetPrivateKey(key.PrivateKey)
+	//single.SetPrivateKey(key.PrivateKey)
 
 	return a, nil
 }
