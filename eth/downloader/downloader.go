@@ -1494,28 +1494,36 @@ func (d *Downloader) importBlockResults(results []*fetchResult) (err error) {
 		}
 	}()
 
-	// Check for any early termination requests
+	// Check if results array is empty
 	if len(results) == 0 {
-		return nil
+		return fmt.Errorf("results array is empty, cannot proceed with block import")
 	}
+
+	// Check for any early termination requests
 	select {
 	case <-d.quitCh:
 		return errCancelContentProcessing
 	default:
 	}
+
 	// Retrieve a batch of results to import
 	first, last := results[0].Header, results[len(results)-1].Header
 	log.Debug("Inserting downloaded chain", "items", len(results),
 		"firstnum", first.Number, "firsthash", first.Hash(),
 		"lastnum", last.Number, "lasthash", last.Hash(),
 	)
+
 	blocks := make([]*types.Block, len(results))
 	for i, result := range results {
 		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles).WithWithdrawals(result.Withdrawals)
 	}
-	// Downloaded blocks are always regarded as trusted after the
-	// transition. Because the downloaded chain is guided by the
-	// consensus-layer.
+
+	// Ensure blocks array is not empty before inserting
+	if len(blocks) == 0 {
+		return fmt.Errorf("blocks array is empty, cannot insert blocks")
+	}
+
+	// Insert blocks into the chain
 	if index, err := d.blockchain.InsertChain(blocks); err != nil {
 		if index < len(results) {
 			log.Debug("Downloaded item processing failed", "number", results[index].Header.Number, "hash", results[index].Header.Hash(), "err", err)
@@ -1530,14 +1538,11 @@ func (d *Downloader) importBlockResults(results []*fetchResult) (err error) {
 				}
 			}
 		} else {
-			// The InsertChain method in blockchain.go will sometimes return an out-of-bounds index,
-			// when it needs to preprocess blocks to import a sidechain.
-			// The importer will put together a new list of blocks to import, which is a superset
-			// of the blocks delivered from the downloader, and the indexing will be off.
 			log.Debug("Downloaded item processing failed on sidechain import", "index", index, "err", err)
 		}
 		return fmt.Errorf("%w: %v", errInvalidChain, err)
 	}
+
 	return nil
 }
 
