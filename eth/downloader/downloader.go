@@ -1491,6 +1491,7 @@ func (d *Downloader) importBlockResults(results []*fetchResult) (err error) {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic occurred: %v", r)
 			log.Error("Panic during block results import", "panic", r)
+			return
 		}
 	}()
 
