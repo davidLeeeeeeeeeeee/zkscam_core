@@ -154,8 +154,7 @@ func (f *VtFetcher) ReceiveVotes(votesData eth2.Votes) error {
 		if !pass_bls {
 			continue
 		}
-		// 还需要加入自己的签名再广播？0x1efff6ce9403ba960c62e014ab6802bb8a5b268f
-		err = f.AddVote((*eth2.Vote)(&vote))
+
 		if err != nil {
 			fmt.Println("Error adding vote:", err)
 			continue
@@ -171,6 +170,7 @@ func (f *VtFetcher) ReceiveVotes(votesData eth2.Votes) error {
 			fmt.Println("Miner does not meet the minimum balance threshold:", vote.MinerAddress.Hex())
 			continue
 		}
+		err = f.AddVote((*eth2.Vote)(&vote))
 	}
 	return nil
 }
