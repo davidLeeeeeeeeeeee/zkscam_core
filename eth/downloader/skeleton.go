@@ -1212,28 +1212,37 @@ func (s *skeleton) Bounds() (head *types.Header, tail *types.Header, final *type
 	// Although there's a lot of error handling here, these are mostly as sanity
 	// checks to avoid crashing if a programming error happens. These should not
 	// happen in live code.
-	//status := rawdb.ReadSkeletonSyncStatus(s.db)
-	//if len(status) == 0 {
-	//	return nil, nil, nil, errors.New("beacon sync not yet started")
-	//}
+	// status := rawdb.ReadSkeletonSyncStatus(s.db)
+	// if len(status) == 0 {
+	// 	return nil, nil, nil, errors.New("beacon sync not yet started")
+	// }
 	progress := new(skeletonProgress)
-	//if err := json.Unmarshal(status, progress); err != nil {
-	//	return nil, nil, nil, err
-	//}
+	// if err := json.Unmarshal(status, progress); err != nil {
+	// 	return nil, nil, nil, err
+	// }
+
+	// Check if Subchains is non-empty to avoid out-of-range error
+	if len(progress.Subchains) == 0 {
+		return nil, nil, nil, fmt.Errorf("no subchains found")
+	}
+
 	head = rawdb.ReadSkeletonHeader(s.db, progress.Subchains[0].Head)
 	if head == nil {
 		return nil, nil, nil, fmt.Errorf("head skeleton header %d is missing", progress.Subchains[0].Head)
 	}
+
 	tail = rawdb.ReadSkeletonHeader(s.db, progress.Subchains[0].Tail)
 	if tail == nil {
 		return nil, nil, nil, fmt.Errorf("tail skeleton header %d is missing", progress.Subchains[0].Tail)
 	}
+
 	if progress.Finalized != nil && tail.Number.Uint64() <= *progress.Finalized && *progress.Finalized <= head.Number.Uint64() {
 		final = rawdb.ReadSkeletonHeader(s.db, *progress.Finalized)
 		if final == nil {
 			return nil, nil, nil, fmt.Errorf("finalized skeleton header %d is missing", *progress.Finalized)
 		}
 	}
+
 	return head, tail, final, nil
 }
 
