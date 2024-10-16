@@ -1487,13 +1487,13 @@ func (d *Downloader) processFullSyncContent(totalVotes *big.Int, beaconMode bool
 
 func (d *Downloader) importBlockResults(results []*fetchResult) (err error) {
 	// Recover from any panics and return an error
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panic occurred: %v", r)
-			log.Error("Panic during block results import", "panic", r)
-			return
-		}
-	}()
+	//defer func() {
+	//	if r := recover(); r != nil {
+	//		err = fmt.Errorf("panic occurred: %v", r)
+	//		log.Error("Panic during block results import", "panic", r)
+	//		return
+	//	}
+	//}()
 
 	// Check if results array is empty
 	if len(results) == 0 {
