@@ -1079,9 +1079,6 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 	tip := w.tip
 	w.mu.RUnlock()
 
-	// 计算时间阈值 (next block time - 15s)
-	timeThreshold := time.Unix(int64(env.header.Time), 0).Add(-time.Duration(w.chainConfig.Clique.Period) * time.Second).Unix()
-
 	// Retrieve the pending transactions pre-filtered by the 1559/4844 dynamic fees
 	filter := txpool.PendingFilter{
 		MinTip: tip,
@@ -1104,20 +1101,14 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 
 	for _, account := range w.eth.TxPool().Locals() {
 		if txs := remotePlainTxs[account]; len(txs) > 0 {
-			// 过滤掉超过时间阈值的交易
-			filteredTxs := filterTransactionsByTime(txs, timeThreshold)
-			if len(filteredTxs) > 0 {
-				delete(remotePlainTxs, account)
-				localPlainTxs[account] = filteredTxs
-			}
+			delete(remotePlainTxs, account)
+			localPlainTxs[account] = txs
+
 		}
 		if txs := remoteBlobTxs[account]; len(txs) > 0 {
-			// 过滤掉超过时间阈值的交易
-			filteredTxs := filterTransactionsByTime(txs, timeThreshold)
-			if len(filteredTxs) > 0 {
-				delete(remoteBlobTxs, account)
-				localBlobTxs[account] = filteredTxs
-			}
+			delete(remoteBlobTxs, account)
+			localBlobTxs[account] = txs
+
 		}
 	}
 
@@ -1139,16 +1130,6 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 		}
 	}
 	return nil
-}
-
-func filterTransactionsByTime(txs []*txpool.LazyTransaction, timeThreshold int64) []*txpool.LazyTransaction {
-	var filteredTxs []*txpool.LazyTransaction
-	for _, tx := range txs {
-		if tx.Time.Unix() < timeThreshold { // 使用 Unix() 函数将 time.Time 转换为 int64
-			filteredTxs = append(filteredTxs, tx)
-		}
-	}
-	return filteredTxs
 }
 
 // generateWork generates a sealing block based on the given parameters.

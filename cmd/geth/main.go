@@ -37,7 +37,6 @@ import (
 	log2 "log"
 	"net/http"
 	"os"
-	"runtime/trace"
 	"sort"
 	"strconv"
 	"strings"
@@ -274,20 +273,6 @@ func main() {
 		log2.Println("Starting pprof server on :6060")
 		log2.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
-
-	// 创建 trace 输出文件
-	f, err := os.Create("trace.out")
-	if err != nil {
-		log2.Fatalf("failed to create trace output file: %v", err)
-	}
-	defer f.Close()
-
-	// 启动 trace
-	err = trace.Start(f)
-	if err != nil {
-		log2.Fatalf("failed to start trace: %v", err)
-	}
-	defer trace.Stop()
 
 	// 运行 Geth 的主应用逻辑
 	if err := app.Run(os.Args); err != nil {
