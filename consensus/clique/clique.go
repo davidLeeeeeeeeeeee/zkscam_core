@@ -724,11 +724,11 @@ func (c *Clique) Authorize(signer common.Address, signFn SignerFn) {
 // the local signing credentials.
 func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
 	// 如果处于重组状态，直接返回
-	if single.IsReorging {
-		log.Warn("Chain reorg in progress, skipping block submission")
-		results <- nil
-		return errors.New("chain reorg in progress")
-	}
+	//if single.IsReorging {
+	//	log.Warn("Chain reorg in progress, skipping block submission")
+	//	results <- nil
+	//	return errors.New("chain reorg in progress")
+	//}
 	header := block.Header()
 
 	// 不支持对创世区块进行封印
