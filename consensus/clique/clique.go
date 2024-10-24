@@ -715,6 +715,7 @@ func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, res
 	// 如果处于重组状态，直接返回
 	if single.IsReorging {
 		log.Warn("Chain reorg in progress, skipping block submission")
+		results <- nil
 		return errors.New("chain reorg in progress")
 	}
 	header := block.Header()
