@@ -435,8 +435,8 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		minRecommit = recommit // minimal resubmit interval specified by user.
 		timestamp   int64      // timestamp for each round of sealing.
 	)
-
-	timer := time.NewTimer(0)
+	log.Info("Initial recommit interval", "recommit", recommit)
+	timer := time.NewTimer(recommit)
 	defer timer.Stop()
 	<-timer.C // discard the initial tick
 
@@ -484,16 +484,11 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			commit(commitInterruptNewHead)
 
 		case <-timer.C:
-
+			log.Info("Timer triggered")
 			// If sealing is running resubmit a new work cycle periodically to pull in
 			// higher priced transactions. Disable this overhead for pending blocks.
 			if w.isRunning() && (w.chainConfig.Clique == nil || w.chainConfig.Clique.Period > 0) {
-				// Short circuit if no new transaction arrives.
-				if w.newTxs.Load() == 0 {
-					timer.Reset(recommit)
-					//log.Info("Reset(recommit) continue")
-					continue
-				}
+
 				log.Info("timer.C commit(commitInterruptResubmit)")
 				commit(commitInterruptResubmit)
 			}
@@ -636,14 +631,13 @@ func (w *worker) taskLoop() {
 		select {
 		case task := <-w.taskCh:
 
-			log.Info("task := <-w.taskCh:")
+			log.Info("taskLoop() task := <-w.taskCh: continue")
 			if w.newTaskHook != nil {
 				w.newTaskHook(task)
 			}
 			// Reject duplicate sealing work due to resubmitting.
 			sealHash := w.engine.SealHash(task.block.Header())
 			if sealHash == prev {
-				log.Info("if sealHash == prev {")
 				continue
 			}
 			// Interrupt previous sealing operation
@@ -652,6 +646,7 @@ func (w *worker) taskLoop() {
 
 			if w.skipSealHook != nil && w.skipSealHook(task) {
 				log.Info("w.skipSealHook != nil && w.skipSealHook(task)")
+				prev = common.Hash{}
 				continue
 			}
 			w.pendingMu.Lock()
@@ -660,6 +655,7 @@ func (w *worker) taskLoop() {
 			// 将当前的 stopCh 传递给共识引擎
 			stopCh := w.currentTaskStopCh
 			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
+				prev = common.Hash{}
 				log.Warn("Block sealing failed", "err", err)
 				w.pendingMu.Lock()
 				delete(w.pendingTasks, sealHash)
