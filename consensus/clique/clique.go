@@ -551,10 +551,21 @@ func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-	header.Time = parent.Time + c.config.Period
-	if header.Time < uint64(time.Now().Unix()) {
-		time.Sleep(time.Duration(uint64(time.Now().Unix()) - header.Time))
+
+	// 获取当前系统时间
+	currentTime := uint64(time.Now().Unix())
+
+	// 计算N，使得 currentTime > parent.Time + N * c.config.Period 并且 currentTime < parent.Time + (N+1) * c.config.Period
+	if currentTime <= parent.Time {
+		return fmt.Errorf("current system time is earlier than parent block time")
 	}
+
+	N := (currentTime - parent.Time) / c.config.Period
+	if N == 0 {
+		return fmt.Errorf("parent block time == current time")
+	}
+	// 计算header.Time
+	header.Time = parent.Time + N*c.config.Period
 
 	return nil
 }

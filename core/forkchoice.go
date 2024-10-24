@@ -89,7 +89,6 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, extern *types.Header) (b
 	if diff := externVotes.Cmp(localVotes); diff > 0 {
 		//log.Info("return true, nil", externVotes.String(), localVotes.String())
 
-		single.IsReorging = true
 		return true, nil
 	} else if diff < 0 {
 		log.Info("return false, nil")

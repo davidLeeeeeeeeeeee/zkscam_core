@@ -20,6 +20,7 @@ package downloader
 import (
 	"errors"
 	"fmt"
+	single "github.com/ethereum/go-ethereum/singleton"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -456,12 +457,14 @@ func (d *Downloader) getMode() SyncMode {
 func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, totalVotes *big.Int, beaconMode bool) (err error) {
 	log.Info("func (d *Downloader) syncWithPeer(")
 	d.mux.Post(StartEvent{})
+	single.IsReorging = true
 	defer func() {
 		// reset on error
 		if err != nil {
 			d.mux.Post(FailedEvent{err})
 		} else {
 			latest := d.lightchain.CurrentHeader()
+			single.IsReorging = false
 			d.mux.Post(DoneEvent{latest})
 		}
 	}()
