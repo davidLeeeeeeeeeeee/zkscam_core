@@ -19,14 +19,14 @@ package core
 import (
 	crand "crypto/rand"
 	"errors"
-	"math/big"
-	mrand "math/rand"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	single "github.com/ethereum/go-ethereum/singleton"
+	"math/big"
+	mrand "math/rand"
 )
 
 // ChainReader defines a small collection of methods needed to access the local
@@ -82,14 +82,17 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, extern *types.Header) (b
 	)
 	if localVotes == nil || externVotes == nil {
 		log.Info("return false, errors.New(\"missing votes\")")
+		single.IsReorging = false
 		return false, errors.New("missing votes")
 	}
 	// If the total votes are higher in the external header, choose it as the new head
 	if diff := externVotes.Cmp(localVotes); diff > 0 {
 		//log.Info("return true, nil", externVotes.String(), localVotes.String())
+		single.IsReorging = true
 		return true, nil
 	} else if diff < 0 {
 		log.Info("return false, nil")
+		single.IsReorging = false
 		return false, nil
 	}
 	// 投票相同，比较MinerAddresses的数量
@@ -97,6 +100,7 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, extern *types.Header) (b
 	externMinersCount := len(extern.MinerAddresses)
 
 	if externMinersCount > localMinersCount {
+		single.IsReorging = true
 		return true, nil
 	} else if externMinersCount < localMinersCount {
 		return false, nil
@@ -104,13 +108,16 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, extern *types.Header) (b
 	// Local and external votes are identical.
 	// Second clause reduces the vulnerability to selfish mining attacks.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
+	single.IsReorging = false
 	reorg := false
 	externNum, localNum := extern.Number.Uint64(), current.Number.Uint64()
 	//log.Info("externNum, localNum :")
 	if externNum < localNum {
+		single.IsReorging = true
 		reorg = true
 	} else if externNum == localNum {
 		if current.ZkscamHash == extern.ZkscamHash {
+			single.IsReorging = false
 			reorg = false
 		}
 	}

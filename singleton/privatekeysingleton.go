@@ -22,6 +22,7 @@ var (
 	address           common.Address
 	mu                sync.Mutex
 	initialized       bool
+	IsReorging        bool
 	errNotInitialized = errors.New("private key is not initialized")
 )
 
@@ -63,7 +64,7 @@ func New() (*ecdsa.PrivateKey, common.Address, error) {
 
 	// 如果成功，标记为已初始化
 	initialized = true
-
+	IsReorging = false
 	return instance, address, nil
 }
 
@@ -77,13 +78,6 @@ func splitLines(data string) []string {
 		}
 	}
 	return lines
-}
-
-// SetPrivateKey 设置单例的私钥值
-func SetPrivateKey(key *ecdsa.PrivateKey) {
-	mu.Lock()
-	defer mu.Unlock()
-	instance = key
 }
 
 // GetPrivateKey 获取单例的私钥值

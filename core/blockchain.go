@@ -20,6 +20,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	single "github.com/ethereum/go-ethereum/singleton"
 	"io"
 	"math/big"
 	"runtime"
@@ -2301,6 +2302,7 @@ func (bc *BlockChain) reorg(oldHead *types.Header, newHead *types.Block) error {
 	if len(rebirthLogs) > 0 {
 		bc.logsFeed.Send(rebirthLogs)
 	}
+	single.IsReorging = false
 	return nil
 }
 func (bc *BlockChain) Rollback(toBlockNumber *big.Int, alreadyLocked bool) error {

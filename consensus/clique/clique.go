@@ -210,17 +210,8 @@ type Clique struct {
 
 	// The fields below are for testing only
 	fakeDiff    bool // Skip difficulty verifications
-	reorging    bool
 	erc20       *contracts.ERC20
 	headerCache *HeaderCache
-}
-
-func (c *Clique) setReorging(flag bool) {
-	c.reorging = flag
-}
-
-func (c *Clique) isReorging() bool {
-	return c.reorging
 }
 
 // New creates a Clique proof-of-authority consensus engine with the initial
@@ -722,7 +713,7 @@ func (c *Clique) Authorize(signer common.Address, signFn SignerFn) {
 // the local signing credentials.
 func (c *Clique) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
 	// 如果处于重组状态，直接返回
-	if c.isReorging() {
+	if single.IsReorging {
 		log.Warn("Chain reorg in progress, skipping block submission")
 		return errors.New("chain reorg in progress")
 	}
